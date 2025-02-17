@@ -1,0 +1,75 @@
+tests:
+  - name: common_asserts
+    provider: athena_db
+    query: >
+      SELECT *
+      FROM test_db.test
+      WHERE date = date('2025-01-03');
+
+    contains_rows:
+      source: inline
+      rows:
+        - account_id: 1234
+          product: test_1
+          date: 2025-01-03
+        - account_id: 1235
+          product: test_2
+          date: 2025-01-03
+
+    not_contain_rows:
+      - account_id: 1236
+        product: test_3
+        date: 2025-01-03
+
+    columns_exists:
+      - account_id
+      - product
+      - date
+
+    row_count: 2
+
+    column_ratio:
+      - column: date
+        value: 2025-01-03
+        min_ratio: 1
+
+  - name: csv_validation
+    provider: athena_db
+    query: >
+      SELECT *
+      FROM test_db.test
+      WHERE date = date('2025-01-03');
+
+    contains_rows:
+      source: csv
+      path: tests/contains_rows.csv
+
+    not_contains_rows:
+      source: csv
+      path: tests/not_contains_rows.csv
+
+
+  - name: provider_validation
+    provider: athena_db
+    query: >
+      SELECT *
+      FROM test_db.test
+      WHERE date = date('2025-01-03');
+
+    contains_rows:
+      source: provider
+      provider: athena_db
+      query: >
+        SELECT *
+        FROM test_db.test
+        WHERE date = date('2025-01-03');
+
+    not_contains_rows:
+      source: provider
+      provider: athena_db
+      query: >
+        SELECT *
+        FROM test_db.test
+        WHERE date = date('2025-01-03');
+      map:
+        product: new_column_name
