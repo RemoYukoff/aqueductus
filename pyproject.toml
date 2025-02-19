@@ -1,12 +1,13 @@
 [project]
 name = "aqueductus"
 version = "1.0.0"
-description = ""
+description = "A data testing framework that executes queries on configurable data providers and validates the results with customizable YAML-defined assertions."
 authors = [
     {name = "Remo Yukoff",email = "remo.yukoff@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.12"
 dependencies = [
     "click (>=8.1.8,<9.0.0)",
     "boto3 (>=1.36.13,<2.0.0)",
