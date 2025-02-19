@@ -37,15 +37,7 @@ A powerful Python framework for validating data quality across different data so
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd aqueductus
-
-# Install dependencies using Poetry
-poetry install
-
-# Activate virtual environment
-poetry shell
+pip install aqueductus
 ```
 
 ## Quick Start
