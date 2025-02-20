@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Type, ClassVar
+from typing import Any, ClassVar, Type
 
 import sqlalchemy as sa
 from pyathena import connect

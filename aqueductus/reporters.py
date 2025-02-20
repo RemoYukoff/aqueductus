@@ -1,7 +1,7 @@
 import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
-from typing import Any, Type, ClassVar
+from typing import Any, ClassVar, Type
 
 
 class ReporterFactory:

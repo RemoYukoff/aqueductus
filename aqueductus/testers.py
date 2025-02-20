@@ -1,7 +1,7 @@
 import csv
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Type, ClassVar
+from typing import Any, ClassVar, Type
 
 from aqueductus.providers import Provider
 
