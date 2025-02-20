@@ -1,6 +1,6 @@
 [project]
 name = "aqueductus"
-version = "1.0.0"
+version = "1.1.0"
 description = "A data testing framework that executes queries on configurable data providers and validates the results with customizable YAML-defined assertions."
 authors = [
     {name = "Remo Yukoff",email = "remo.yukoff@gmail.com"}

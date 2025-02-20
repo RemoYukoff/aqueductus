@@ -1,8 +1,8 @@
+import importlib.util
 import os
 import re
-from datetime import datetime
-from re import Match, Pattern
-from typing import Any, Callable
+from re import Match
+from typing import Any
 
 import yaml
 
@@ -42,89 +42,65 @@ class Test:
         return {"name": self.name, "query": self.query, "results": results}
 
 
-class ConfigResolver:
+class TestRunner:
     # Regex to match ${ENV_VAR_NAME} or $ENV_VAR_NAME
-    _env_var_pattern = re.compile(r"\$\{([^}]+)}|\$(\S+)")
-    # TODO: I don't think this is needed anymore or maybe we should change it and just add
-    # static placeholders sections to the yamls file
+    _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)}|\$(\S+)")
     # Regex to match {{placeholder}}
-    _placeholder_pattern = re.compile(r"\{\{(.+)}}")
-    placeholders = {"today": datetime.today().strftime("%Y-%m-%d")}
+    _PLACEHOLDER_PATTERN = re.compile(r"\{\{(.+)}}")
 
-    def __init__(self, placeholders: dict[str, Any] | None = None):
-        if placeholders:
-            self.placeholders.update(placeholders)
+    def __init__(self, config_files: tuple[str]):
+        self.placeholders = self._load_placeholders()
+        self.config = self._load_config(config_files)
+        self.providers = self._init_providers()
+        self.tests = self._init_tests()
 
-    @staticmethod
-    def resolve(config: dict[str, Any]) -> dict[str, Any]:
-        config = ConfigResolver._resolve_pattern(
-            config,
-            [
-                (
-                    ConfigResolver._env_var_pattern,
-                    ConfigResolver._replace_env_vars,
-                ),
-                (
-                    ConfigResolver._placeholder_pattern,
-                    ConfigResolver._replace_placeholders,
-                ),
-            ],
-        )
-        return config
+    def _load_placeholders(self) -> dict[str, Any]:
+        directory = os.getcwd()
+        env_path = os.path.join(directory, "environment.py")
 
-    @staticmethod
-    def _resolve_pattern(
-        config: dict[str, Any],
-        pattern_resolvers: list[tuple[Pattern[str], Callable[[Match[str]], str]]],
-    ) -> dict[str, Any]:
-        def replace_env_vars(value: Any) -> Any:
-            if isinstance(value, str):
-                for pattern, replacement in pattern_resolvers:
-                    value = pattern.sub(replacement, value)
-                return value
-            elif isinstance(value, dict):
-                return {k: replace_env_vars(v) for k, v in value.items()}
-            elif isinstance(value, list):
-                return [replace_env_vars(v) for v in value]
-            else:
-                return value
+        if not os.path.exists(env_path):
+            return {}
 
-        return replace_env_vars(config)
+        # Load the module dynamically
+        spec = importlib.util.spec_from_file_location("environment", env_path)
+        environment = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(environment)
+
+        # Return the PLACEHOLDERS variable if it exists
+        if hasattr(environment, "PLACEHOLDERS"):
+            return environment.PLACEHOLDERS
+
+        return {}
 
     @staticmethod
-    def _replace_env_vars(match: Match[str]) -> str:
-        env_var_name = match.group(1) or match.group(2)
+    def _replace_env_vars_text(match: Match[str]) -> str:
+        env_var_name = (match.group(1) or match.group(2)).strip()
         env_var_value = os.getenv(env_var_name)
         if env_var_value is None:
             raise ValueError(f"Environment variable '{env_var_name}' is not set")
         return env_var_value
 
-    @staticmethod
-    def _replace_placeholders(match: Match[str]) -> str:
-        placeholder_name = match.group(1)
-        placeholder_value = ConfigResolver.placeholders.get(placeholder_name)
+    def _replace_placeholders_text(self, match: Match[str]) -> str:
+        placeholder_name = match.group(1).strip()
+        placeholder_value = self.placeholders.get(placeholder_name)
         if placeholder_value is None:
-            raise ValueError(f"There's no placeholder value for '{placeholder_name}'")
+            raise ValueError(f"Placeholder variable '{placeholder_name}' is not set")
         return placeholder_value
-
-
-class TestRunner:
-
-    def __init__(
-        self, config_file: tuple[str], placeholders: dict[str, Any] | None = None
-    ):
-        self.config_resolver = ConfigResolver(placeholders)
-        self.config = self._load_config(config_file)
-        self.providers = self._init_providers()
-        self.tests = self._init_tests()
 
     def _load_config(self, config_files: tuple[str]) -> dict[str, Any]:
         merged_config = {"providers": [], "tests": []}
         for config_file in config_files:
             # TODO: Add yaml schema validation
             with open(config_file, "r") as f:
-                config = yaml.safe_load(f)
-                config = self.config_resolver.resolve(config)
+                yaml_text = f.read()
+                yaml_text = self._ENV_VAR_PATTERN.sub(
+                    self._replace_env_vars_text, yaml_text
+                )
+                yaml_text = self._PLACEHOLDER_PATTERN.sub(
+                    self._replace_placeholders_text, yaml_text
+                )
+
+                config = yaml.safe_load(yaml_text)
                 if "providers" in config:
                     merged_config["providers"].extend(config["providers"])
                 if "tests" in config:
