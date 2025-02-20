@@ -110,7 +110,7 @@ class TestRunner:
     def _init_providers(self) -> dict[str, Provider]:
         providers = {}
         for provider_config in self.config["providers"]:
-            providers[provider_config["name"]] = ProviderFactory.get_provider(
+            providers[provider_config["name"]] = ProviderFactory.create_provider(
                 provider_config["type"],
                 provider_config["config"],
             )

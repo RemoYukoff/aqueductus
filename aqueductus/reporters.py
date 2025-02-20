@@ -20,7 +20,7 @@ class ReporterFactory:
         cls._reporters[name] = reporter_class
 
     @classmethod
-    def get_reporter(cls, reporter_type: str) -> "Reporter":
+    def create_reporter(cls, reporter_type: str) -> "Reporter":
         if reporter_type not in cls._reporters:
             raise ValueError(
                 f"Unknown reporter format: {reporter_type}. "

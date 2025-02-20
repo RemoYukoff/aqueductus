@@ -1,9 +1,36 @@
 import csv
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Type
+from typing import Any, Type, ClassVar
 
 from aqueductus.providers import Provider
+
+
+class TestFactory:
+    _tests: dict[str, Type["DataTest"]] = {}
+
+    @classmethod
+    def create_test(
+        cls,
+        test_type: str,
+        test_config: Any,
+        query_results: list[dict[str, Any]],
+        providers: dict[str, Provider],
+    ) -> "DataTest":
+        if test_type not in cls._tests:
+            raise ValueError(
+                f"Unknown test type: {test_type}. "
+                f"Available formats: {list(cls._tests.keys())}"
+            )
+        return cls._tests[test_type](
+            query_results=query_results, config=test_config, providers=providers
+        )
+
+    @classmethod
+    def register_test(cls, name: str, test_class: Type["DataTest"]) -> None:
+        if not issubclass(test_class, DataTest):
+            raise TypeError(f"Class {test_class.__name__} must inherit from DataTest")
+        cls._tests[name] = test_class
 
 
 class RowLoader(ABC):
@@ -40,6 +67,8 @@ class InlineRowLoader(RowLoader):
 
 
 class RowLoaderFactory:
+    # TODO: Should we move this to a factory and implement the same logic we have for custom
+    # reporters, providers, etc.?
     def __init__(self, providers: dict[str, Provider]):
         self._loaders = {
             "csv": CsvRowLoader(),
@@ -54,6 +83,15 @@ class RowLoaderFactory:
 
 
 class DataTest(ABC):
+    test_name: ClassVar[str] = None
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        """Automatically register any subclass with the TestFactory."""
+        super().__init_subclass__(**kwargs)
+        if cls.test_name is not None:
+            TestFactory.register_test(cls.test_name, cls)
+
     def __init__(
         self,
         query_results: list[dict[str, Any]],
@@ -95,6 +133,8 @@ class BaseRowTest(DataTest, ABC):
         if not isinstance(expected, dict):
             return expected == actual
 
+        # TODO: Should we move this to a factory and implement the same logic we have for custom
+        # reporters, providers, etc.?
         # Handle comparison operators
         operator, value = next(iter(expected.items()))
         match operator:
@@ -132,6 +172,8 @@ class BaseRowTest(DataTest, ABC):
 
 
 class ContainsRowsTest(BaseRowTest):
+    test_name = "contains_rows"
+
     def run(self) -> dict[str, Any]:
         missing = [
             row
@@ -149,6 +191,8 @@ class ContainsRowsTest(BaseRowTest):
 
 
 class NotContainsRowsTest(BaseRowTest):
+    test_name = "not_contains_rows"
+
     def run(self) -> dict[str, Any]:
         found = [
             row for row in self.config_rows if self.row_contained(row, self.actual_rows)
@@ -164,6 +208,8 @@ class NotContainsRowsTest(BaseRowTest):
 
 
 class RowCountTest(DataTest):
+    test_name = "row_count"
+
     def run(self) -> dict[str, Any]:
         expected_count = self.config
         actual_count = len(self.query_results)
@@ -175,6 +221,8 @@ class RowCountTest(DataTest):
 
 
 class ColumnsExistsTest(DataTest):
+    test_name = "columns_exists"
+
     def run(self) -> dict[str, Any]:
         columns = set(self.query_results[0].keys())
         expected_columns = set(self.config)
@@ -188,6 +236,8 @@ class ColumnsExistsTest(DataTest):
 
 
 class ColumnRatioTest(DataTest):
+    test_name = "column_ratio"
+
     def run(self) -> dict[str, Any]:
         configs = self.config if isinstance(self.config, list) else [self.config]
         total_rows = len(self.query_results)
@@ -228,6 +278,8 @@ class ColumnRatioTest(DataTest):
 
 
 class AllRowsMatchTest(BaseRowTest):
+    test_name = "all_rows_match"
+
     def run(self) -> dict[str, Any]:
         non_matching = [
             row
@@ -241,28 +293,3 @@ class AllRowsMatchTest(BaseRowTest):
             "expected": self.config_rows,
             "ignored_columns": list(self.ignore_columns),
         }
-
-
-class TestFactory:
-    test_mapping: dict[str, Type[DataTest]] = {
-        "contains_rows": ContainsRowsTest,
-        "not_contains_rows": NotContainsRowsTest,
-        "row_count": RowCountTest,
-        "columns_exists": ColumnsExistsTest,
-        "column_ratio": ColumnRatioTest,
-        "all_rows_match": AllRowsMatchTest,
-    }
-
-    @classmethod
-    def create_test(
-        cls,
-        test_type: str,
-        test_config: Any,
-        query_results: list[dict[str, Any]],
-        providers: dict[str, Provider],
-    ) -> DataTest:
-        if test_type not in cls.test_mapping:
-            raise ValueError(f"Unknown test type: {test_type}")
-        return cls.test_mapping[test_type](
-            query_results=query_results, config=test_config, providers=providers
-        )

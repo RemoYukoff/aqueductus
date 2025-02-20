@@ -20,7 +20,7 @@ def main(config_file: tuple[str], format: tuple[str]) -> None:
     tester = TestRunner(config_file)
     tests_results = tester.run_all()
     for fmt in format:
-        reporter = ReporterFactory.get_reporter(fmt)
+        reporter = ReporterFactory.create_reporter(fmt)
         reporter.generate_report(tests_results)
 
     for test in tests_results:

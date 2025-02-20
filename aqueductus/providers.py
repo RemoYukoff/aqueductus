@@ -13,7 +13,7 @@ class ProviderFactory:
     _providers: dict[str, Type["Provider"]] = {}
 
     @classmethod
-    def get_provider(
+    def create_provider(
         cls,
         provider_type: str,
         provider_config: dict[str, Any],
@@ -24,7 +24,7 @@ class ProviderFactory:
                 f"Available providers: {list(cls._providers.keys())}"
             )
 
-        return cls.provider_mapping[provider_type](provider_config)
+        return cls._providers[provider_type](provider_config)
 
     @classmethod
     def register_provider(cls, name: str, provider_class: Type["Provider"]) -> None:
