@@ -2,6 +2,7 @@ import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from typing import ClassVar, Type
+
 from aqueductus.runner import Test
 
 
@@ -42,8 +43,9 @@ class Reporter(ABC):
     def __init_subclass__(cls, **kwargs):
         """Automatically register any subclass with the ReporterFactory."""
         super().__init_subclass__(**kwargs)
-        if cls.reporter_name is not None:
-            ReporterFactory.register_reporter(cls.reporter_name, cls)
+        if cls.reporter_name is None:
+            raise ValueError(f"Subclass {cls.__name__} must define reporter_name")
+        ReporterFactory.register_reporter(cls.reporter_name, cls)
 
     @abstractmethod
     def generate_report(self, tests: list[Test]) -> None:

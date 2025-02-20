@@ -1,8 +1,9 @@
 import csv
 import re
+import time
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Type, TypedDict
-import time
+
 from aqueductus.providers import Provider
 
 
@@ -104,8 +105,9 @@ class DataTest(ABC):
     def __init_subclass__(cls, **kwargs):
         """Automatically register any subclass with the TestFactory."""
         super().__init_subclass__(**kwargs)
-        if cls.test_name is not None:
-            TestFactory.register_test(cls.test_name, cls)
+        if cls.test_name is None:
+            raise ValueError(f"Subclass {cls.__name__} must define test_name")
+        TestFactory.register_test(cls.test_name, cls)
 
     def __init__(
         self,

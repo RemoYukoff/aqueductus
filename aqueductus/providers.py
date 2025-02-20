@@ -43,8 +43,9 @@ class Provider(ABC):
     def __init_subclass__(cls, **kwargs):
         """Automatically register any subclass with the ProviderFactory."""
         super().__init_subclass__(**kwargs)
-        if cls.provider_name is not None:
-            ProviderFactory.register_provider(cls.provider_name, cls)
+        if cls.provider_name is None:
+            raise ValueError(f"Subclass {cls.__name__} must define provider_name")
+        ProviderFactory.register_provider(cls.provider_name, cls)
 
     @abstractmethod
     def __init__(self, config: dict[str, Any]) -> None:
