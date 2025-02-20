@@ -23,8 +23,7 @@ A powerful Python framework for validating data quality across different data so
 
 - 🛠️ **Advanced Configuration**
 
-  - Environment variable support
-  - Date placeholders
+  - Environment and placeholder variables support
   - Multiple data source configurations
   - CSV file integration
   - Cross-provider testing

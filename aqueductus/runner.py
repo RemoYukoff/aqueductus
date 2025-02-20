@@ -5,7 +5,6 @@ from re import Match
 from typing import Any, TypedDict
 
 import yaml
-
 from aqueductus.providers import Provider, ProviderFactory
 from aqueductus.testers import TestFactory, TestResult
 
@@ -42,9 +41,9 @@ class TestConfig(TypedDict):
 
 class TestRunner:
     # Regex to match ${ENV_VAR_NAME} or $ENV_VAR_NAME
-    _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)}|\$(\S+)")
+    _ENV_VAR_PATTERN = re.compile(r"\${([^}]+)}|\$(\S+)")
     # Regex to match {{placeholder}}
-    _PLACEHOLDER_PATTERN = re.compile(r"\{\{(.+)}}")
+    _PLACEHOLDER_PATTERN = re.compile(r"<<(.+)>>")
 
     def __init__(self, config_files: tuple[str]):
         self.placeholders = self._load_placeholders()
