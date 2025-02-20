@@ -3,7 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Type
 
-from aqueductus.providers import DataProvider
+from aqueductus.providers import Provider
 
 
 class RowLoader(ABC):
@@ -23,7 +23,7 @@ class CsvRowLoader(RowLoader):
 
 
 class ProviderRowLoader(RowLoader):
-    def __init__(self, providers: dict[str, DataProvider]):
+    def __init__(self, providers: dict[str, Provider]):
         self.providers = providers
 
     def load_rows(self, config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -40,7 +40,7 @@ class InlineRowLoader(RowLoader):
 
 
 class RowLoaderFactory:
-    def __init__(self, providers: dict[str, DataProvider]):
+    def __init__(self, providers: dict[str, Provider]):
         self._loaders = {
             "csv": CsvRowLoader(),
             "provider": ProviderRowLoader(providers),
@@ -58,7 +58,7 @@ class DataTest(ABC):
         self,
         query_results: list[dict[str, Any]],
         config: Any,
-        providers: dict[str, DataProvider],
+        providers: dict[str, Provider],
     ):
         self.query_results = query_results
         self.config = config
@@ -74,7 +74,7 @@ class BaseRowTest(DataTest, ABC):
         self,
         query_results: list[dict[str, Any]],
         config: Any,
-        providers: dict[str, DataProvider],
+        providers: dict[str, Provider],
     ):
         super().__init__(query_results, config, providers)
         source = config.get("source", "inline")
@@ -259,7 +259,7 @@ class TestFactory:
         test_type: str,
         test_config: Any,
         query_results: list[dict[str, Any]],
-        providers: dict[str, DataProvider],
+        providers: dict[str, Provider],
     ) -> DataTest:
         if test_type not in cls.test_mapping:
             raise ValueError(f"Unknown test type: {test_type}")

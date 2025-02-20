@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from aqueductus.providers import DataProvider, ProviderFactory
+from aqueductus.providers import Provider, ProviderFactory
 from aqueductus.testers import TestFactory
 
 
@@ -14,10 +14,10 @@ class Test:
     def __init__(
         self,
         name: str,
-        provider: DataProvider,
+        provider: Provider,
         query: str,
         test_configs: dict[str, Any],
-        providers: dict[str, DataProvider],
+        providers: dict[str, Provider],
     ):
         self.name = name
         self.provider = provider
@@ -107,10 +107,10 @@ class TestRunner:
                     merged_config["tests"].extend(config["tests"])
         return merged_config
 
-    def _init_providers(self) -> dict[str, DataProvider]:
+    def _init_providers(self) -> dict[str, Provider]:
         providers = {}
         for provider_config in self.config["providers"]:
-            providers[provider_config["name"]] = ProviderFactory.create_provider(
+            providers[provider_config["name"]] = ProviderFactory.get_provider(
                 provider_config["type"],
                 provider_config["config"],
             )

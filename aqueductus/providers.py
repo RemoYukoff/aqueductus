@@ -1,11 +1,51 @@
 from abc import ABC, abstractmethod
-from typing import Any, Type
+from typing import Any, Type, ClassVar
 
 import sqlalchemy as sa
 from pyathena import connect
 
 
-class DataProvider(ABC):
+class ProviderFactory:
+    # TODO: Figure out how we can load the custom providers before the main call
+    # or the providers will not be available for use
+    # we could load from providers.py on the user dir automatically maybe?
+    # or allow the user to set wich file will load their providers
+    _providers: dict[str, Type["Provider"]] = {}
+
+    @classmethod
+    def get_provider(
+        cls,
+        provider_type: str,
+        provider_config: dict[str, Any],
+    ) -> "Provider":
+        if provider_type not in cls._providers:
+            raise ValueError(
+                f"Unknown provider type: {provider_type}. "
+                f"Available providers: {list(cls._providers.keys())}"
+            )
+
+        return cls.provider_mapping[provider_type](provider_config)
+
+    @classmethod
+    def register_provider(cls, name: str, provider_class: Type["Provider"]) -> None:
+        if not issubclass(provider_class, "Provider"):
+            raise TypeError(
+                f"Class {provider_class.__name__} must inherit from Provider"
+            )
+        cls._providers[name] = provider_class
+
+
+class Provider(ABC):
+    # Class variable to store provider metadata
+    provider_name: ClassVar[str] = None
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        """Automatically register any subclass with the ProviderFactory."""
+        super().__init_subclass__(**kwargs)
+        if cls.provider_name is not None:
+            ProviderFactory.register_provider(cls.provider_name, cls)
+
     @abstractmethod
     def __init__(self, config: dict[str, Any]) -> None:
         pass
@@ -15,7 +55,9 @@ class DataProvider(ABC):
         pass
 
 
-class AthenaProvider(DataProvider):
+class AthenaProvider(Provider):
+    provider_name = "athena"
+
     def __init__(self, config: dict[str, Any]):
         try:
             self.conn = connect(
@@ -38,7 +80,9 @@ class AthenaProvider(DataProvider):
             ) from e
 
 
-class MySQLProvider(DataProvider):
+class MySQLProvider(Provider):
+    provider_name = "mysql"
+
     def __init__(self, config: dict[str, Any]):
         try:
             self.engine = sa.create_engine(
@@ -56,20 +100,3 @@ class MySQLProvider(DataProvider):
             raise RuntimeError(
                 f"Failed to execute MySQL query: {str(e)}\nQuery: {query}"
             ) from e
-
-
-class ProviderFactory:
-    provider_mapping: dict[str, Type[DataProvider]] = {
-        "athena": AthenaProvider,
-        "mysql": MySQLProvider,
-    }
-
-    @classmethod
-    def create_provider(
-        cls,
-        provider_type: str,
-        provider_config: dict[str, Any],
-    ) -> DataProvider:
-        if provider_type not in cls.provider_mapping:
-            raise ValueError(f"Unknown test type: {provider_type}")
-        return cls.provider_mapping[provider_type](provider_config)
