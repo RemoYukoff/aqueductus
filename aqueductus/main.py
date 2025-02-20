@@ -2,7 +2,7 @@ import sys
 
 import click
 
-from aqueductus.reporter import ReporterFactory
+from aqueductus.reporters import ReporterFactory
 from aqueductus.runner import TestRunner
 
 
@@ -13,7 +13,7 @@ from aqueductus.runner import TestRunner
     "-f",
     multiple=True,
     default=["console"],
-    type=click.Choice(ReporterFactory.reporters),
+    type=click.Choice(ReporterFactory.list_available_reporters()),
     help="Output format",
 )
 def main(config_file: tuple[str], format: tuple[str]) -> None:
