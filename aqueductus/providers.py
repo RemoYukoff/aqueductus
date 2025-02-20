@@ -1,25 +1,13 @@
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Type
 
 import sqlalchemy as sa
 from pyathena import connect
-import inspect
-from pathlib import Path
-import importlib.util
 
 
 class ProviderFactory:
     _providers: dict[str, Type["Provider"]] = {}
-
-    @classmethod
-    def load_custom_providers(cls, file_path: str = "providers.py"):
-        path = Path(file_path)
-
-        if path.is_file() and path.suffix == ".py":
-            module_name = path.stem
-            spec = importlib.util.spec_from_file_location(module_name, path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
 
     @classmethod
     def create_provider(
@@ -84,7 +72,7 @@ class AthenaProvider(Provider):
     def execute_query(self, query: str) -> list[dict[str, Any]]:
         try:
             self.conn.execute(query)
-            columns = [col[0] for col in self.conn.description]
+            columns = [col[0] for col in self.conn.description]  # type: ignore[union-attr]
             return [dict(zip(columns, row)) for row in self.conn.fetchall()]
         except Exception as e:
             raise RuntimeError(

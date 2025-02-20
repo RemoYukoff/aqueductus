@@ -1,26 +1,15 @@
 import csv
+import inspect
 import re
 import time
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Type, TypedDict
-import inspect
+
 from aqueductus.providers import Provider
-from pathlib import Path
-import importlib.util
 
 
 class TestFactory:
     _tests: dict[str, Type["DataTest"]] = {}
-
-    @classmethod
-    def load_custom_testers(cls, file_path: str = "testers.py"):
-        path = Path(file_path)
-
-        if path.is_file() and path.suffix == ".py":
-            module_name = path.stem
-            spec = importlib.util.spec_from_file_location(module_name, path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
 
     @classmethod
     def create_test(

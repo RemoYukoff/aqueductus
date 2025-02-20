@@ -1,12 +1,13 @@
-import importlib.util
 import os
 import re
 from re import Match
 from typing import Any, TypedDict
 
 import yaml
+
 from aqueductus.providers import Provider, ProviderFactory
 from aqueductus.testers import TestFactory, TestResult
+from aqueductus.utils import load_module
 
 
 class Test:
@@ -45,26 +46,22 @@ class TestRunner:
     # Regex to match {{placeholder}}
     _PLACEHOLDER_PATTERN = re.compile(r"<<(.+)>>")
 
-    def __init__(self, config_files: tuple[str]):
+    def __init__(self, config_files: list[str]):
         self.placeholders = self._load_placeholders()
         self.config = self._load_config(config_files)
         self.providers = self._init_providers()
         self.tests = self._init_tests()
 
     def _load_placeholders(self) -> dict[str, Any]:
-        directory = os.getcwd()
-        env_path = os.path.join(directory, "environment.py")
-
-        if not os.path.exists(env_path):
-            return {}
-
-        # Load the module dynamically
-        spec = importlib.util.spec_from_file_location("environment", env_path)
-        environment = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(environment)
+        environment = load_module("environment.py")
 
         # Return the PLACEHOLDERS variable if it exists
-        if hasattr(environment, "PLACEHOLDERS"):
+        if environment and hasattr(environment, "PLACEHOLDERS"):
+            if not isinstance(environment.PLACEHOLDERS, dict):
+                raise ValueError(
+                    "PLACEHOLDERS in 'environment.py' must be a dictionary, "
+                    f"got {type(environment.PLACEHOLDERS).__name__} instead"
+                )
             return environment.PLACEHOLDERS
 
         return {}
@@ -84,7 +81,7 @@ class TestRunner:
             raise ValueError(f"Placeholder variable '{placeholder_name}' is not set")
         return placeholder_value
 
-    def _load_config(self, config_files: tuple[str]) -> TestConfig:
+    def _load_config(self, config_files: list[str]) -> TestConfig:
         merged_config: TestConfig = {"providers": [], "tests": []}
         for config_file in config_files:
             # TODO: Add yaml schema validation

@@ -1,15 +1,16 @@
 import sys
+from pathlib import Path
 
 import click
 
 from aqueductus.reporters import ReporterFactory
-from aqueductus.providers import ProviderFactory
-from aqueductus.testers import TestFactory
 from aqueductus.runner import TestRunner
-from pathlib import Path
+from aqueductus.utils import load_module
 
+# Register classes into their factories
 # Allows click to show custom reporters when using --help
-ReporterFactory.load_custom_reporters()
+for module in ["providers.py", "reporters.py", "testers.py"]:
+    load_module(module)
 
 
 @click.command()
@@ -22,10 +23,7 @@ ReporterFactory.load_custom_reporters()
     type=click.Choice(ReporterFactory.list_available_reporters()),
     help="Output format",
 )
-def main(config_files: tuple[Path], format: tuple[str]) -> None:
-    ProviderFactory.load_custom_providers()
-    TestFactory.load_custom_testers()
-
+def main(config_files: tuple[str], format: tuple[str]) -> None:
     # Expand glob patterns into a list of file paths
     all_files: set[Path] = set()
     for config_file in config_files:

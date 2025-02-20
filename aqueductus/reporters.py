@@ -1,25 +1,14 @@
+import inspect
 import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from typing import ClassVar, Type
-from pathlib import Path
-import importlib.util
+
 from aqueductus.runner import Test
-import inspect
 
 
 class ReporterFactory:
     _reporters: dict[str, Type["Reporter"]] = {}
-
-    @classmethod
-    def load_custom_reporters(cls, file_path: str = "reporters.py"):
-        path = Path(file_path)
-
-        if path.is_file() and path.suffix == ".py":
-            module_name = path.stem
-            spec = importlib.util.spec_from_file_location(module_name, path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
 
     @classmethod
     def register_reporter(cls, name: str, reporter_class: Type["Reporter"]) -> None:
