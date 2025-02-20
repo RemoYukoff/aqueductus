@@ -34,4 +34,4 @@ types-pyyaml = "^6.0.12.20241230"
 profile = "black"
 
 [tool.poetry.scripts]
-aqueductus = "aqueductus.main:main"
+aqueductus = "aqueductus.__main__:main"

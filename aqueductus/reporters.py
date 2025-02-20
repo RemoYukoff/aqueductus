@@ -2,16 +2,24 @@ import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from typing import ClassVar, Type
-
+from pathlib import Path
+import importlib.util
 from aqueductus.runner import Test
+import inspect
 
 
 class ReporterFactory:
-    # TODO: Figure out how we can load the custom reporters before the main call
-    # or click will throw an error when using custom reporters
-    # we could load from reporters.py on the user dir automatically maybe?
-    # or allow the user to set wich file will load their reporters
     _reporters: dict[str, Type["Reporter"]] = {}
+
+    @classmethod
+    def load_custom_reporters(cls, file_path: str = "reporters.py"):
+        path = Path(file_path)
+
+        if path.is_file() and path.suffix == ".py":
+            module_name = path.stem
+            spec = importlib.util.spec_from_file_location(module_name, path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
     @classmethod
     def register_reporter(cls, name: str, reporter_class: Type["Reporter"]) -> None:
@@ -43,6 +51,8 @@ class Reporter(ABC):
     def __init_subclass__(cls, **kwargs):
         """Automatically register any subclass with the ReporterFactory."""
         super().__init_subclass__(**kwargs)
+        if inspect.isabstract(cls):
+            return
         if cls.reporter_name is None:
             raise ValueError(f"Subclass {cls.__name__} must define reporter_name")
         ReporterFactory.register_reporter(cls.reporter_name, cls)

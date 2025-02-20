@@ -4,12 +4,14 @@ A powerful Python framework for validating data quality across different data so
 
 ## ✨ Key Features
 
-- 🔌 **Multiple Data Sources** 
+- 🔌 **Multiple Data Sources**
+
   - Amazon Athena
   - MySQL
   - Extensible architecture for adding more providers
 
 - 🔍 **Rich Test Types**
+
   - Row presence validation
   - Negative testing (absence of rows)
   - Column completeness checks
@@ -20,6 +22,7 @@ A powerful Python framework for validating data quality across different data so
   - Comparative operators (>, <, =)
 
 - 🛠️ **Advanced Configuration**
+
   - Environment variable support
   - Date placeholders
   - Multiple data source configurations
@@ -61,7 +64,7 @@ tests:
       SELECT user_id, status
       FROM users
       WHERE created_date = CURRENT_DATE
-    
+
     # Verify specific rows exist
     contains_rows:
       source: inline
@@ -70,7 +73,7 @@ tests:
           column2: "value2"
       ignore_columns:
         - timestamp
-    
+
     # Verify column completeness
     column_ratio:
       - column: status
@@ -87,6 +90,7 @@ aqueductus config.yaml
 ## 📚 Test Types
 
 ### 1. Contains Rows
+
 Verifies that specific rows exist in the query results:
 
 ```yaml
@@ -100,6 +104,7 @@ contains_rows:
 ```
 
 ### 2. Not Contains Rows
+
 Ensures specific rows do not exist:
 
 ```yaml
@@ -110,6 +115,7 @@ not_contains_rows:
 ```
 
 ### 3. Column Ratio
+
 Validates the ratio of values in a column:
 
 ```yaml
@@ -121,6 +127,7 @@ column_ratio:
 ```
 
 ### 4. Row Count
+
 Verifies the exact number of rows:
 
 ```yaml
@@ -128,6 +135,7 @@ row_count: 100
 ```
 
 ### 5. Columns Exist
+
 Ensures required columns are present:
 
 ```yaml
@@ -139,6 +147,7 @@ columns_exists:
 ## 🔄 Data Sources
 
 ### CSV Integration
+
 Load test data from CSV files:
 
 ```yaml
@@ -148,6 +157,7 @@ contains_rows:
 ```
 
 ### Cross-Provider Testing
+
 Compare data across different providers:
 
 ```yaml
@@ -155,7 +165,7 @@ contains_rows:
   source: provider
   provider: other_athena
   query: SELECT * FROM reference_table
-  map:  # Optional column mapping
+  map: # Optional column mapping
     source_col: target_col
 ```
 
@@ -172,6 +182,7 @@ aqueductus config.yaml --format console,json,junit
 ```
 
 Available formats:
+
 - `console`: Human-readable console output
 - `json`: JSON file output
 - `junit`: JUnit XML for CI/CD integration
@@ -195,7 +206,6 @@ class DataProvider(ABC):
 
 ```
 
-
 ### Adding a New Test Type
 
 Reference to test type implementation:
@@ -217,7 +227,6 @@ class DataTest(ABC):
         pass
 
 ```
-
 
 ### Adding a New Reporter
 

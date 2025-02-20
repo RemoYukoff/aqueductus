@@ -3,7 +3,12 @@ import sys
 import click
 
 from aqueductus.reporters import ReporterFactory
+from aqueductus.providers import ProviderFactory
+from aqueductus.testers import TestFactory
 from aqueductus.runner import TestRunner
+
+# Allows click to show custom reporters when using --help
+ReporterFactory.load_custom_reporters()
 
 
 @click.command()
@@ -17,6 +22,9 @@ from aqueductus.runner import TestRunner
     help="Output format",
 )
 def main(config_file: tuple[str], format: tuple[str]) -> None:
+    ProviderFactory.load_custom_providers()
+    TestFactory.load_custom_testers()
+
     tester = TestRunner(config_file)
     tests = tester.run_all()
     for fmt in format:

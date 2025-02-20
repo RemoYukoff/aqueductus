@@ -3,14 +3,23 @@ from typing import Any, ClassVar, Type
 
 import sqlalchemy as sa
 from pyathena import connect
+import inspect
+from pathlib import Path
+import importlib.util
 
 
 class ProviderFactory:
-    # TODO: Figure out how we can load the custom providers before the main call
-    # or the providers will not be available for use
-    # we could load from providers.py on the user dir automatically maybe?
-    # or allow the user to set wich file will load their providers
     _providers: dict[str, Type["Provider"]] = {}
+
+    @classmethod
+    def load_custom_providers(cls, file_path: str = "providers.py"):
+        path = Path(file_path)
+
+        if path.is_file() and path.suffix == ".py":
+            module_name = path.stem
+            spec = importlib.util.spec_from_file_location(module_name, path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
     @classmethod
     def create_provider(
@@ -43,6 +52,8 @@ class Provider(ABC):
     def __init_subclass__(cls, **kwargs):
         """Automatically register any subclass with the ProviderFactory."""
         super().__init_subclass__(**kwargs)
+        if inspect.isabstract(cls):
+            return
         if cls.provider_name is None:
             raise ValueError(f"Subclass {cls.__name__} must define provider_name")
         ProviderFactory.register_provider(cls.provider_name, cls)
