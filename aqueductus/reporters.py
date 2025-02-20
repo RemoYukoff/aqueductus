@@ -96,7 +96,7 @@ class JUnitReporter(Reporter):
                     )
                     failure.text = str(result["details"])
         with open("junit.xml", "w+") as f:
-            f.write(ET.tostring(testsuite, encoding="unicode"))
+            f.write(ET.tostring(root_suite, encoding="unicode"))
 
 
 class MarkdownReporter(Reporter):
