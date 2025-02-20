@@ -6,13 +6,14 @@ from aqueductus.reporters import ReporterFactory
 from aqueductus.providers import ProviderFactory
 from aqueductus.testers import TestFactory
 from aqueductus.runner import TestRunner
+from pathlib import Path
 
 # Allows click to show custom reporters when using --help
 ReporterFactory.load_custom_reporters()
 
 
 @click.command()
-@click.argument("config_file", nargs=-1, required=True, type=click.Path(exists=True))
+@click.argument("config_files", nargs=-1, required=True, type=click.Path())
 @click.option(
     "--format",
     "-f",
@@ -21,11 +22,27 @@ ReporterFactory.load_custom_reporters()
     type=click.Choice(ReporterFactory.list_available_reporters()),
     help="Output format",
 )
-def main(config_file: tuple[str], format: tuple[str]) -> None:
+def main(config_files: tuple[Path], format: tuple[str]) -> None:
     ProviderFactory.load_custom_providers()
     TestFactory.load_custom_testers()
 
-    tester = TestRunner(config_file)
+    # Expand glob patterns into a list of file paths
+    all_files: set[Path] = set()
+    for config_file in config_files:
+        path = Path(config_file)
+        if "*" in config_file or "?" in config_file or "[" in config_file:
+            matched_files = list(Path.cwd().glob(config_file))
+            if not matched_files:
+                raise click.BadParameter(
+                    f"No config files matched pattern: {config_file}"
+                )
+            all_files.update(matched_files)
+        else:
+            if not path.exists():
+                raise click.BadParameter(f"Config file does not exist: {config_file}")
+            all_files.add(path)
+
+    tester = TestRunner([str(file) for file in all_files])
     tests = tester.run_all()
     for fmt in format:
         reporter = ReporterFactory.create_reporter(fmt)
