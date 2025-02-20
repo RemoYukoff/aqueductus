@@ -28,7 +28,7 @@ class ProviderFactory:
 
     @classmethod
     def register_provider(cls, name: str, provider_class: Type["Provider"]) -> None:
-        if not issubclass(provider_class, "Provider"):
+        if not issubclass(provider_class, Provider):
             raise TypeError(
                 f"Class {provider_class.__name__} must inherit from Provider"
             )
@@ -37,7 +37,7 @@ class ProviderFactory:
 
 class Provider(ABC):
     # Class variable to store provider metadata
-    provider_name: ClassVar[str] = None
+    provider_name: ClassVar[str]
 
     @classmethod
     def __init_subclass__(cls, **kwargs):

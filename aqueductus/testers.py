@@ -1,8 +1,8 @@
 import csv
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Type
-
+from typing import Any, ClassVar, Type, TypedDict
+import time
 from aqueductus.providers import Provider
 
 
@@ -31,6 +31,10 @@ class TestFactory:
         if not issubclass(test_class, DataTest):
             raise TypeError(f"Class {test_class.__name__} must inherit from DataTest")
         cls._tests[name] = test_class
+
+    @classmethod
+    def list_available_tests(cls) -> list[str]:
+        return list(cls._tests.keys())
 
 
 class RowLoader(ABC):
@@ -82,8 +86,19 @@ class RowLoaderFactory:
         return self._loaders[source]
 
 
+class TestResultCore(TypedDict):
+    passed: bool
+    message: str
+    details: dict[str, Any]
+
+
+class TestResult(TestResultCore):
+    name: str
+    time: float
+
+
 class DataTest(ABC):
-    test_name: ClassVar[str] = None
+    test_name: ClassVar[str]
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -103,8 +118,20 @@ class DataTest(ABC):
         self.providers = providers
 
     @abstractmethod
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         pass
+
+    def run(self) -> TestResult:
+        start_time = time.time()
+        result = self._run_test()
+        end_time = time.time()
+        return {
+            "name": self.test_name,
+            "passed": result["passed"],
+            "message": result["message"],
+            "details": result["details"],
+            "time": end_time - start_time,
+        }
 
 
 class BaseRowTest(DataTest, ABC):
@@ -174,71 +201,111 @@ class BaseRowTest(DataTest, ABC):
 class ContainsRowsTest(BaseRowTest):
     test_name = "contains_rows"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         missing = [
             row
             for row in self.config_rows
             if not self.row_contained(row, self.actual_rows)
         ]
-
-        return {
-            "passed": not missing,
+        passed = not missing
+        message = (
+            "All expected rows were found in the actual results."
+            if passed
+            else f"Missing {len(missing)} expected rows."
+        )
+        details = {
             "missing_rows": missing,
             "total_expected": len(self.config_rows),
             "total_actual": len(self.query_results),
             "ignored_columns": list(self.ignore_columns),
         }
 
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
+        }
+
 
 class NotContainsRowsTest(BaseRowTest):
     test_name = "not_contains_rows"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         found = [
             row for row in self.config_rows if self.row_contained(row, self.actual_rows)
         ]
 
-        return {
-            "passed": not found,
+        passed = not found
+        message = (
+            "No unexpected rows were found in the actual results."
+            if passed
+            else f"Found {len(found)} unexpected rows."
+        )
+        details = {
             "found_rows": found,
             "total_unexpected": len(self.config_rows),
             "total_actual": len(self.query_results),
             "ignored_columns": list(self.ignore_columns),
+        }
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
         }
 
 
 class RowCountTest(DataTest):
     test_name = "row_count"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         expected_count = self.config
         actual_count = len(self.query_results)
-        return {
-            "passed": actual_count == expected_count,
+        passed = actual_count == expected_count
+        message = (
+            f"Row count matches: {actual_count} == {expected_count}"
+            if passed
+            else f"Row count mismatch: expected {expected_count}, got {actual_count}"
+        )
+        details = {
             "actual_count": actual_count,
             "expected_count": expected_count,
+        }
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
         }
 
 
 class ColumnsExistsTest(DataTest):
     test_name = "columns_exists"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         columns = set(self.query_results[0].keys())
         expected_columns = set(self.config)
         missing = expected_columns - columns
-        return {
-            "passed": not missing,
+        passed = not missing
+        message = (
+            "All expected columns exist in the results."
+            if passed
+            else f"Missing {len(missing)} expected columns."
+        )
+        details = {
             "missing_columns": list(missing),
             "expected_columns": list(expected_columns),
             "actual_columns": list(columns),
+        }
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
         }
 
 
 class ColumnRatioTest(DataTest):
     test_name = "column_ratio"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         configs = self.config if isinstance(self.config, list) else [self.config]
         total_rows = len(self.query_results)
         results = []
@@ -270,26 +337,49 @@ class ColumnRatioTest(DataTest):
                     "matching_rows": matching_rows,
                 }
             )
-        return {
-            "passed": all(result["passed"] for result in results),
+
+        passed = all(result["passed"] for result in results)
+        message = (
+            "All column ratios are within expected bounds."
+            if passed
+            else "Some column ratios are outside expected bounds."
+        )
+        details = {
             "total_rows": total_rows,
             "results": results,
+        }
+
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
         }
 
 
 class AllRowsMatchTest(BaseRowTest):
     test_name = "all_rows_match"
 
-    def run(self) -> dict[str, Any]:
+    def _run_test(self) -> TestResultCore:
         non_matching = [
             row
             for row in self.actual_rows
             if not self.row_contained(row, self.config_rows)
         ]
 
-        return {
-            "passed": not non_matching,
+        passed = not non_matching
+        message = (
+            "All actual rows match the expected rows."
+            if passed
+            else f"Found {len(non_matching)} non-matching rows."
+        )
+        details = {
             "non_matching_rows": non_matching,
             "expected": self.config_rows,
             "ignored_columns": list(self.ignore_columns),
+        }
+
+        return {
+            "passed": passed,
+            "message": message,
+            "details": details,
         }

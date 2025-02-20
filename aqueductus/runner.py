@@ -2,12 +2,12 @@ import importlib.util
 import os
 import re
 from re import Match
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
 
 from aqueductus.providers import Provider, ProviderFactory
-from aqueductus.testers import TestFactory
+from aqueductus.testers import TestFactory, TestResult
 
 
 class Test:
@@ -24,22 +24,20 @@ class Test:
         self.query = query
         self.test_configs = test_configs
         self.providers = providers
+        self.results: list[TestResult] = []
 
-    def run(self) -> dict[str, Any]:
+    def run(self) -> None:
         query_results = self.provider.execute_query(self.query)
-        results = []
         for test_type, test_config in self.test_configs.items():
             test = TestFactory.create_test(
                 test_type, test_config, query_results, self.providers
             )
-            results.append(
-                {
-                    "test_type": test_type,
-                    "result": test.run(),
-                }
-            )
+            self.results.append(test.run())
 
-        return {"name": self.name, "query": self.query, "results": results}
+
+class TestConfig(TypedDict):
+    providers: list[dict[str, Any]]
+    tests: list[dict[str, Any]]
 
 
 class TestRunner:
@@ -87,8 +85,8 @@ class TestRunner:
             raise ValueError(f"Placeholder variable '{placeholder_name}' is not set")
         return placeholder_value
 
-    def _load_config(self, config_files: tuple[str]) -> dict[str, Any]:
-        merged_config = {"providers": [], "tests": []}
+    def _load_config(self, config_files: tuple[str]) -> TestConfig:
+        merged_config: TestConfig = {"providers": [], "tests": []}
         for config_file in config_files:
             # TODO: Add yaml schema validation
             with open(config_file, "r") as f:
@@ -121,7 +119,9 @@ class TestRunner:
         for test_config in self.config["tests"]:
             provider = self.providers[test_config["provider"]]
             test_specific_configs = {
-                k: v for k, v in test_config.items() if k in TestFactory.test_mapping
+                k: v
+                for k, v in test_config.items()
+                if k in TestFactory.list_available_tests()
             }
             tests.append(
                 Test(
@@ -134,5 +134,7 @@ class TestRunner:
             )
         return tests
 
-    def run_all(self) -> list[dict[str, Any]]:
-        return [test.run() for test in self.tests]
+    def run_all(self) -> list[Test]:
+        for test in self.tests:
+            test.run()
+        return self.tests

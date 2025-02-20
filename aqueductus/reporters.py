@@ -1,7 +1,8 @@
 import json
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Type
+from typing import ClassVar, Type
+from aqueductus.runner import Test
 
 
 class ReporterFactory:
@@ -35,7 +36,7 @@ class ReporterFactory:
 
 class Reporter(ABC):
     # Class variable to store reporter metadata
-    reporter_name: ClassVar[str] = None
+    reporter_name: ClassVar[str]
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -45,67 +46,70 @@ class Reporter(ABC):
             ReporterFactory.register_reporter(cls.reporter_name, cls)
 
     @abstractmethod
-    def generate_report(self, test_results: list[dict[str, Any]]) -> None:
+    def generate_report(self, tests: list[Test]) -> None:
         pass
 
 
 class ConsoleReporter(Reporter):
     reporter_name = "console"
 
-    def generate_report(self, test_results: list[dict[str, Any]]) -> None:
-        for test_result in test_results:
-            print(f"Test '{test_result['name']}':")
-            for result in test_result["results"]:
+    def generate_report(self, tests: list[Test]) -> None:
+        for test in tests:
+            print(f"Test '{test.name}':")
+            for result in test.results:
                 print(
-                    f"  Test '{result['test_type']}': "
-                    f"{'PASSED' if result['result']['passed'] else 'FAILED'}"
+                    f"  Test '{result['name']}' [{result['time']}s]: "
+                    f"{'PASSED' if result['passed'] else f'FAILED: {result["message"]}'}"
                 )
-                if not result["result"]["passed"]:
-                    print(f"    Details: {json.dumps(result['result'], indent=2)}")
+                if not result["passed"]:
+                    print(f"    Details: {json.dumps(result['details'], indent=2)}")
             print()
 
 
 class JsonReporter(Reporter):
     reporter_name = "json"
 
-    def generate_report(self, test_results: list[dict[str, Any]]) -> None:
+    def generate_report(self, tests: list[Test]) -> None:
         with open("report.json", "w+") as f:
-            json.dump(test_results, f, indent=2)
+            json.dump([{test.name: test.results for test in tests}], f, indent=2)
 
 
 class JUnitReporter(Reporter):
     reporter_name = "junit"
 
-    def generate_report(self, test_results: list[dict[str, Any]]) -> None:
-        # TODO: Generated with AI, needs to be refined to actually use the JUnit format,
-        # should use junit library
-        testsuites = ET.Element("testsuites")
-        for test_result in test_results:
-            testsuite = ET.SubElement(testsuites, "testsuite", name=test_result["name"])
-            for result in test_result["results"]:
+    def generate_report(self, tests: list[Test]) -> None:
+        root_suite = ET.Element("testsuite", name="Data Test", tests=str(len(tests)))
+        for test in tests:
+            testsuite = ET.SubElement(root_suite, "testsuite", name=test.name)
+            for result in test.results:
                 testcase = ET.SubElement(
-                    testsuite, "testcase", name=result["test_type"]
+                    testsuite,
+                    "testcase",
+                    name=result["name"],
+                    time=f"{result['time']:.3f}",
                 )
-                if not result["result"]["passed"]:
-                    failure = ET.SubElement(testcase, "failure", message="Test failed")
-                    failure.text = str(result["result"])
+                if not result["passed"]:
+                    failure = ET.SubElement(
+                        testcase, "failure", message=result["message"]
+                    )
+                    failure.text = str(result["details"])
         with open("junit.xml", "w+") as f:
-            f.write(ET.tostring(testsuites, encoding="unicode"))
+            f.write(ET.tostring(testsuite, encoding="unicode"))
 
 
 class MarkdownReporter(Reporter):
     reporter_name = "markdown"
 
-    def generate_report(self, test_results: list[dict[str, Any]]) -> None:
+    def generate_report(self, tests: list[Test]) -> None:
         report = "# Test Results\n\n"
-        for test_result in test_results:
-            report += f"## {test_result['name']}\n"
-            report += f"**Query**: `{test_result['query']}`\n\n"
-            for result in test_result["results"]:
-                status = "✅ PASSED" if result["result"]["passed"] else "❌ FAILED"
-                report += f"- **{result['test_type']}**: {status}\n"
-                if not result["result"]["passed"]:
-                    report += f"  ```\n  {result['result']}\n  ```\n"
+        for test in tests:
+            report += f"## {test.name}\n"
+            report += f"**Query**: `{test.query}`\n\n"
+            for result in test.results:
+                status = "✅ PASSED" if result["passed"] else "❌ FAILED"
+                report += f"- **{result["name"]}**: {status}\n"
+                if not result["passed"]:
+                    report += f"  ```\n  {result["details"]}\n  ```\n"
             report += "\n"
         with open("report.md", "w+") as f:
             f.write(report)
