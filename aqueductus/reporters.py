@@ -79,9 +79,11 @@ class JUnitReporter(Reporter):
     reporter_name = "junit"
 
     def generate_report(self, tests: list[Test]) -> None:
-        root_suite = ET.Element("testsuite", name="Data Test", tests=str(len(tests)))
+        root = ET.Element("testsuites", name="aqueductus", tests=str(len(tests)))
         for test in tests:
-            testsuite = ET.SubElement(root_suite, "testsuite", name=test.name)
+            testsuite = ET.SubElement(
+                root, "testsuite", name=test.name, tests=str(len(test.results))
+            )
             for result in test.results:
                 testcase = ET.SubElement(
                     testsuite,
@@ -95,7 +97,7 @@ class JUnitReporter(Reporter):
                     )
                     failure.text = str(result["details"])
         with open("junit.xml", "w+") as f:
-            f.write(ET.tostring(root_suite, encoding="unicode"))
+            f.write(ET.tostring(root, encoding="unicode"))
 
 
 class MarkdownReporter(Reporter):
