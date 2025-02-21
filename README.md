@@ -40,11 +40,13 @@ A powerful Python framework for validating data quality across different data so
 
 ### Installation
 
+To install Aqueductus with SQLite support (default):
+
 ```bash
 pip install aqueductus
 ```
 
-To use Aqueductus with MySQL, PostgreSQL, or Athena, you need to install the corresponding extras. Here's how you can do it:
+To use it with MySQL, PostgreSQL, or Athena, install the corresponding extras:
 
 ```bash
 pip install aqueductus[mysql,postgresql,athena]
@@ -69,8 +71,8 @@ tests:
     provider: my_athena
     query: >
       SELECT user_id, status
-      FROM users
-      WHERE created_date = CURRENT_DATE
+      FROM <<table>>
+      WHERE created_date = <<expected_date>>
 
     # Verify specific rows exist
     contains_rows:
@@ -93,6 +95,38 @@ tests:
 ```bash
 aqueductus config.yaml
 ```
+
+## 🛠️ Using Placeholders
+
+Placeholders allow you to dynamically replace certain parts of your queries or configuration files with values defined in your environment.
+
+### How It Works
+
+1. **Define Placeholders in Your YAML File:**
+   In your YAML file (or any file you want to use), you can use placeholders in the format `<<placeholder>>`. For example:
+
+   ```yaml
+   query: "SELECT * FROM <<table_name>> WHERE <<column_name>> = 'some_value';"
+   ```
+
+2. **Define the Corresponding Values in `environment.py`:**
+   In the `environment.py` file, define a dictionary called `PLACEHOLDER` where you map each placeholder to its corresponding value. For example:
+
+   ```python
+   PLACEHOLDER = {
+       "table_name": "users",
+       "column_name": "id"
+   }
+   ```
+
+3. **Aqueductus Automatically Replaces Placeholders:**
+   When Aqueductus processes the YAML file, it will automatically replace any `<<placeholder>>` with the value defined in the `PLACEHOLDER` dictionary from `environment.py`. In this case, the query will be replaced like so:
+
+   ```yaml
+   query: "SELECT * FROM users WHERE id = 'some_value';"
+   ```
+
+This allows you to easily reuse queries or configurations with different values based on your environment or specific use case.
 
 ## 📚 Test Types
 
@@ -196,6 +230,8 @@ Available formats:
 - `markdown`: Markdown report
 
 ## 🛠️ Development
+
+By default, Aqueductus searches for `providers.py`, `testers.py`, and `reporters.py` files in the root directory. Each file will automatically detect and load subclasses for the corresponding provider, test type, or reporter, making it easy to add new components without additional configuration.
 
 ### Adding a New Provider
 
