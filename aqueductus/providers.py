@@ -1,9 +1,11 @@
 import inspect
+import sqlite3
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Type
+from typing import Any, ClassVar, Sequence, Type
 
-import sqlalchemy as sa
-from pyathena import connect
+import pyathena
+import pymysql
+import pymysql.cursors
 
 
 class ProviderFactory:
@@ -51,7 +53,7 @@ class Provider(ABC):
         pass
 
     @abstractmethod
-    def execute_query(self, query: str) -> list[dict[str, Any]]:
+    def execute_query(self, query: str) -> Sequence[dict[str, Any]]:
         pass
 
 
@@ -60,7 +62,7 @@ class AthenaProvider(Provider):
 
     def __init__(self, config: dict[str, Any]):
         try:
-            self.conn = connect(
+            self.conn = pyathena.connect(
                 region_name=config["region"],
                 aws_access_key_id=config["aws_access_key_id"],
                 aws_secret_access_key=config["aws_secret_access_key"],
@@ -69,7 +71,7 @@ class AthenaProvider(Provider):
         except Exception as e:
             raise ConnectionError(f"Failed to connect to Athena: {str(e)}") from e
 
-    def execute_query(self, query: str) -> list[dict[str, Any]]:
+    def execute_query(self, query: str) -> Sequence[dict[str, Any]]:
         try:
             self.conn.execute(query)
             columns = [col[0] for col in self.conn.description]  # type: ignore[union-attr]
@@ -85,18 +87,46 @@ class MySQLProvider(Provider):
 
     def __init__(self, config: dict[str, Any]):
         try:
-            self.engine = sa.create_engine(
-                f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+            self.conn = pymysql.connect(
+                host=config["host"],
+                user=config["user"],
+                password=config["password"],
+                port=config["port"],
+                database=config["database"],
+                cursorclass=pymysql.cursors.DictCursor,
             )
         except Exception as e:
-            raise ConnectionError(f"Failed to create MySQL connection: {str(e)}") from e
+            raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
-    def execute_query(self, query: str) -> list[dict[str, Any]]:
+    def execute_query(self, query: str) -> Sequence[dict[str, Any]]:
         try:
-            with self.engine.connect() as conn:
-                result = conn.execute(sa.text(query))
-                return [dict(row._mapping) for row in result]
-        except sa.exc.SQLAlchemyError as e:
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                return cursor.fetchall()
+        except Exception as e:
             raise RuntimeError(
                 f"Failed to execute MySQL query: {str(e)}\nQuery: {query}"
             ) from e
+
+
+class SQLiteProvider(Provider):
+    provider_name = "sqlite"
+
+    def __init__(self, config: dict[str, Any]):
+        try:
+            self.conn = sqlite3.connect(config["database_path"])
+            self.conn.row_factory = sqlite3.Row
+        except Exception as e:
+            raise ConnectionError(f"Failed to connect to SQLite: {str(e)}") from e
+
+    def execute_query(self, query: str) -> Sequence[dict[str, Any]]:
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            return cursor.fetchall()
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to execute SQLite query: {str(e)}\nQuery: {query}"
+            ) from e
+        finally:
+            cursor.close()

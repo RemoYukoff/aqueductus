@@ -3,7 +3,7 @@ import inspect
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Type, TypedDict
+from typing import Any, ClassVar, Sequence, Type, TypedDict
 
 from aqueductus.providers import Provider
 
@@ -16,7 +16,7 @@ class TestFactory:
         cls,
         test_type: str,
         test_config: Any,
-        query_results: list[dict[str, Any]],
+        query_results: Sequence[dict[str, Any]],
         providers: dict[str, Provider],
     ) -> "DataTest":
         if test_type not in cls._tests:
@@ -114,7 +114,7 @@ class DataTest(ABC):
 
     def __init__(
         self,
-        query_results: list[dict[str, Any]],
+        query_results: Sequence[dict[str, Any]],
         config: Any,
         providers: dict[str, Provider],
     ):
@@ -142,7 +142,7 @@ class DataTest(ABC):
 class BaseRowTest(DataTest, ABC):
     def __init__(
         self,
-        query_results: list[dict[str, Any]],
+        query_results: Sequence[dict[str, Any]],
         config: Any,
         providers: dict[str, Provider],
     ):

@@ -10,10 +10,9 @@ license = { text = "Apache-2.0" }
 requires-python = ">=3.12"
 dependencies = [
     "click (>=8.1.8,<9.0.0)",
-    "boto3 (>=1.36.13,<2.0.0)",
     "pyathena (>=3.12.2,<4.0.0)",
     "pyyaml (>=6.0.2,<7.0.0)",
-    "sqlalchemy (>=2.0.37,<3.0.0)"
+    "pymysql (>=1.1.1,<2.0.0)",
 ]
 
 
@@ -29,6 +28,7 @@ flake8-bugbear = "^24.12.12"
 pytest = "^8.3.4"
 mypy = "^1.15.0"
 types-pyyaml = "^6.0.12.20241230"
+types-pymysql = "^1.1.0.20241103"
 
 [tool.isort]
 profile = "black"
