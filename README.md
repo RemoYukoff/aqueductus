@@ -8,6 +8,8 @@ A powerful Python framework for validating data quality across different data so
 
   - Amazon Athena
   - MySQL
+  - PostgresSQL
+  - SQLite
   - Extensible architecture for adding more providers
 
 - 🔍 **Rich Test Types**
@@ -40,6 +42,12 @@ A powerful Python framework for validating data quality across different data so
 
 ```bash
 pip install aqueductus
+```
+
+To use Aqueductus with MySQL, PostgreSQL, or Athena, you need to install the corresponding extras. Here's how you can do it:
+
+```bash
+pip install aqueductus[mysql,postgresql,athena]
 ```
 
 ## Quick Start
